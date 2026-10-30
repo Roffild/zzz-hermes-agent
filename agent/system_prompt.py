@@ -558,6 +558,7 @@ def _identity_parts(agent: Any, ctx_len: Optional[int]) -> tuple[list[str], bool
     instructions, scoped to the agent's OWN home) or the default identity.
     Returns ``(parts, soul_loaded)``."""
     wants_soul = agent.load_soul_identity or not agent.skip_context_files
+    wants_soul = True  ### MY PROMPT
     _soul_content = _pb.load_soul_md(ctx_len, home_override=_agent_home(agent)) if wants_soul else None
     return ([_soul_content], True) if _soul_content else ([DEFAULT_AGENT_IDENTITY], False)
 
@@ -816,6 +817,17 @@ def build_system_prompt(agent: Any, system_message: Optional[str] = None) -> str
     # Surface context-file truncation warnings in chat, not only in logs.
     for warning in drain_truncation_warnings():
         agent._emit_diagnostic_status(warning)
+    ###### MY PROMT
+    _cc_len = getattr(getattr(agent, "context_compressor", None), "context_length", None)
+    _ctx_len = _cc_len if isinstance(_cc_len, int) and _cc_len > 0 else None
+    stable_parts, _soul_loaded = _identity_parts(agent, _ctx_len)
+    stable_parts.extend(_context_files_part(agent, _ctx_len, _soul_loaded))
+    result = []
+    for ln in "\n\n".join(stable_parts).strip().splitlines():
+        result.append(ln.rstrip())
+    result.append(f"\nENVIRONMENT:\n-Current working directory: {resolve_agent_cwd()}")
+    return "\n".join(result)
+    ###### MY PROMT END
     return "\n\n".join(p for p in (parts["stable"], parts["context"], parts["volatile"]) if p)
 
 
