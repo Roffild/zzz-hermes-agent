@@ -166,6 +166,7 @@ def _match_new_style_provider(
         api_key = get_secret_str(key_env, "").strip() if key_env and resolve_credentials else ""
         result: dict[str, Any] = {"name": entry.get("name", ep_name), "base_url": base_url.strip(),
                                   "api_key": api_key or _clean(entry.get("api_key", "")), "model": entry.get("default_model", "")}
+        result["models"] = entry.get("models", dict())  ### MY FIX
         # Command that PRINTS a short-lived credential; wrapped in a per-request token provider.
         key_cmd = _clean(entry.get("key_cmd", ""))
         if key_cmd:
@@ -577,9 +578,18 @@ def _apply_custom_provider_extras(custom_provider: dict[str, Any], target_model:
 
     if custom_provider.get("extra_headers"):
         result["extra_headers"] = dict(custom_provider["extra_headers"])
-    request_overrides = _custom_provider_request_overrides(custom_provider)
-    if request_overrides:
-        result["request_overrides"] = {**(result.get("request_overrides") or {}), **request_overrides}
+    ### MY FIX
+    # request_overrides = _custom_provider_request_overrides(custom_provider, model_name)
+    from agent.agent_init import _custom_provider_extra_body_for_agent
+    extra_body = _custom_provider_extra_body_for_agent(
+        provider=result.get("provider"), model=result.get("model"), base_url=result.get("base_url"),
+        custom_providers=[custom_provider],
+    )
+    if extra_body:
+        result["request_overrides"] = result.get("request_overrides", dict())
+        result["request_overrides"]["extra_body"] = result["request_overrides"].get("extra_body", dict())
+        result["request_overrides"]["extra_body"].update(extra_body)
+    ### MY FIX END
 
 
 class LocalRuntimeUnavailableError(ValueError):

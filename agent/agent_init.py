@@ -200,11 +200,17 @@ def _custom_provider_extra_body_for_agent(
             continue
         if _normalized_custom_base_url(entry.get("base_url")) != target_url:
             continue
-        extra_body = entry.get("extra_body")
-        if not isinstance(extra_body, dict) or not extra_body:
-            continue
+        ### MY FIX
+        # BUG https://github.com/NousResearch/hermes-agent/issues/124289
+        extra_body = entry.get("extra_body", dict())
+        # if not isinstance(extra_body, dict) or not extra_body:
+        #     continue
         if str(entry.get("model", "") or "").strip():
             if _custom_provider_model_matches(model, entry):
+                extra_body.update(entry.get("models", dict()).
+                                  get(entry["model"].strip().lower(), dict()).
+                                  get("extra_body", dict()))
+        ### MY FIX END
                 return dict(extra_body)
         elif fallback is None:
             fallback = dict(extra_body)
@@ -224,6 +230,11 @@ def _merge_custom_provider_extra_body(agent, custom_providers: list[dict[str, An
     if isinstance(existing_extra_body, dict):
         merged_extra_body.update(existing_extra_body)
     overrides["extra_body"] = merged_extra_body
+    ### MY FIX
+    # BUG https://github.com/NousResearch/hermes-agent/issues/124289
+    overrides["extra_body"] = overrides.get("extra_body", dict())
+    overrides["extra_body"].update(dict(extra_body))
+    ### MY FIX END
     agent.request_overrides = overrides
 
 
